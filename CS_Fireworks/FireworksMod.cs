@@ -16,7 +16,7 @@ namespace CS_Fireworks
         {
             get
             {
-                return "by sqrl";
+                return "Mod originally created by sqrl, now revisited by ccy016.";
             }
         }
 
@@ -24,7 +24,7 @@ namespace CS_Fireworks
         {
             get
             {
-                return "Dynamic Fireworks!";
+                return "Dynamic Fireworks Revisited";
             }
         }
     }

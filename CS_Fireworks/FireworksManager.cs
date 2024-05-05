@@ -11,6 +11,7 @@ using ColossalFramework;
 using ColossalFramework.Math;
 using ColossalFramework.UI;
 using System;
+using System.ComponentModel;
 
 namespace CS_Fireworks
 {
@@ -287,30 +288,39 @@ namespace CS_Fireworks
             {
                 //if (ab.Substring(ab.LastIndexOf('.')) == "unity3d")
                 //{
-                WWW cwww = new WWW("file:///" + ab);
-                yield return cwww;
+                WWW CustomPath = new WWW("file:///" + ab);
+                yield return CustomPath;
                 try
                 {
-                    if (cwww == null)
+                    if (CustomPath == null)
                     {
                         LogErr("can not load " + ab);
                     }
-                    else if (cwww.assetBundle == null)
+                    else if (CustomPath.assetBundle == null)
                     {
                         LogErr(ab + " does not have a asset bundle inside");
                     }
                     else
                     {
-                        GameObject[] abcontent = www.assetBundle.LoadAllAssets<GameObject>();
+                        string AbPathMsg = string.Format("Loading Custom AssetBundle {0}", ab);
+                        WriteLog(AbPathMsg);
+                        LogMsg(AbPathMsg);
+                        GameObject[] abcontent = CustomPath.assetBundle.LoadAllAssets<GameObject>();
                         foreach (GameObject obj in abcontent)
                         {
                             if (obj.GetComponent<ParticleSystem>() == null)
                             {
-                                LogErr(obj.name + " in " + ab + "  does not have a particle system");
+                                string CustomAbErrorMsg = string.Format("{0} in {1} does not have a particle system component.", obj.name, ab);
+                                WriteLog(obj.name + " in " + ab + "  does not have a particle system");
+                                LogErr(CustomAbErrorMsg);
+                                WriteLog(CustomAbErrorMsg);
                             }
                             else
                             {
                                 prefabs.Add(obj);
+                                string CustomAbLoadingMsg = string.Format("Loading particle system named {0} in {1}.", obj.name, ab);
+                                WriteLog(CustomAbLoadingMsg);
+                                LogMsg(CustomAbLoadingMsg);
                             }
                         }
                     }
@@ -324,6 +334,12 @@ namespace CS_Fireworks
             }
 
             LogMsg("Coroutine OK " + prefabs.Count);
+            foreach (GameObject obj in prefabs)
+            {
+                dumpObject(obj);
+                dumpFireworkInfo(obj);
+                LogMsg(string.Format("Prefab name: {0} loaded.", obj.name));
+            }
         }
 
         private static string GetPath()
@@ -373,17 +389,21 @@ namespace CS_Fireworks
 
         public static void LogErr(string msg)
         {
-            DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Error, "[FireworksMod]" + msg);
+            DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Error, "[DynamicFireworksRevisited]" + msg);
             DebugOutputPanel.Show();
         }
         public static void LogMsg(string msg)
         {
-            //DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, "[FireworksMod]" + msg);
-            //DebugOutputPanel.Show();
+#if DEBUG
+            DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, "[DynamicFireworksRevisited]" + msg);
+            DebugOutputPanel.Show();
+#endif
         }
+
+        // TODO: Seperate debug and release file logging.
         public static void WriteLog(string msg)
         {
-            string txt = path + "FireworksLog.txt";
+            string txt = path + "DynamicFireworksRevisitedLog.txt";
             StreamWriter sw;
             if (File.Exists(txt))
             {
@@ -396,6 +416,46 @@ namespace CS_Fireworks
             sw.WriteLine(msg);
             sw.Flush();
             sw.Close();
+        }
+
+        // Added for debug use only.
+        public void dumpObject(GameObject obj)
+        {
+#if DEBUG
+            string objDetails = "";
+            foreach (PropertyDescriptor descriptor in TypeDescriptor.GetProperties(obj))
+            {
+                string name = descriptor.Name;
+                object value = descriptor.GetValue(obj);
+                objDetails += name + ": " + value + "\n";
+            }
+            Vector3 rotation = obj.transform.rotation.eulerAngles;
+            objDetails += obj.name + " rotation euler angles: " + rotation + "\n";
+            LogMsg(objDetails);
+#endif
+        }
+
+        public void dumpFireworkInfo(GameObject obj)
+        {
+#if DEBUG
+            string fireworkDetails = "";
+            if (obj.GetComponent<ParticleSystem>() != null)
+            {
+                fireworkDetails += "Printing information of the ParticleSystem in object " + obj.name + "." + "\n";
+                ParticleSystem.MainModule main = obj.GetComponent<ParticleSystem>().main;
+                ParticleSystem.EmissionModule emission = obj.GetComponent<ParticleSystem>().emission;
+                string mainInfo = "Main info as follows: \n"
+                    + string.Format("startRotationX: {0} {1}, startRotationY: {2} - {3}, startRotationZ: {4} - {5}\n", 
+                        main.startRotationX.constantMin, main.startRotationX.constantMax, main.startRotationY.constantMin, main.startRotationY.constantMax, main.startRotationZ.constantMin, main.startRotationZ.constantMax)
+                    + string.Format("startLifetime: {0} - {1} seconds\n", main.startLifetime.constantMax, main.startLifetime.constantMin)
+                    + string.Format("startSpeed: {0} - {1}, startSize: {2} - {3}, maxParticle: {4}\n", 
+                        main.startSpeed.constantMin, main.startSpeed.constantMax, main.startSize.constantMin, main.startSize.constantMax, main.maxParticles);
+                string emissionInfo = "Emission info as follows: \n"
+                    + string.Format("burstCount: {0}, rateOverTime: {1} - {2}\n", emission.burstCount, emission.rateOverTime.constantMin, emission.rateOverTime.constantMax);
+                fireworkDetails += mainInfo + emissionInfo;
+                LogMsg(fireworkDetails);
+            }
+#endif
         }
     }
 

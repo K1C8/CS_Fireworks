@@ -63,7 +63,8 @@ namespace CS_Fireworks
                     if (particle.isStopped)
                     {
                         Destroy(gameObject);
-                        FireworksManager.LogMsg("particle destroyd");
+                        // FireworksManager.LogMsg("particle destroyd");
+                        FireworksManager.LogMsg("particle destroyed");
                     }
                     break;
                 case FireworkControlMode.Loop:
