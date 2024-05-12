@@ -50,6 +50,9 @@ namespace CS_Fireworks
         public SavedFloat mulExpVel;
         public SavedFloat mulSize;
 
+        // Private reference to a default material from included prefabs.
+        private Material defaultMaterial;
+
         private void Start()
         {
             try
@@ -182,6 +185,12 @@ namespace CS_Fireworks
             ParticleSystem mainparticle = newparticle.GetComponent<ParticleSystem>();
 
             ParticleSystem.MainModule mainm = mainparticle.main;
+            // This makes the effect invisible.
+            //mainm.startSpeed = new ParticleSystem.MinMaxCurve(style.vmin / mainm.gravityModifier.constantMax, style.vmax / mainm.gravityModifier.constantMin);
+            LogMsg(string.Format("The constant, constantMin, constantMax of the Gravity Modifier of this ParticleSystem {0} are {1}, {2} - {3}", 
+                newparticle.name, mainm.gravityModifier.constant, mainm.gravityModifier.constantMin, mainm.gravityModifier.constantMax));
+
+            // The original one works but needs consideration on its assumption that every effect has gravityModifier set at 1.
             mainm.startSpeed = new ParticleSystem.MinMaxCurve(style.vmin, style.vmax);
             mainm.startColor = new ParticleSystem.MinMaxGradient(style.color_from, style.color_to);
             mainm.startLifetime = new ParticleSystem.MinMaxCurve(style.vmin / 9.81f, style.vmax / 9.81f);
@@ -197,12 +206,32 @@ namespace CS_Fireworks
             //    submainm.startSpeed = new ParticleSystem.MinMaxCurve(style.exp_vel_from, style.exp_vel_to);
             //}
 
+
+            ParticleSystemRenderer renderer = newparticle.GetComponent<ParticleSystemRenderer>();
+            Shader shader = renderer.material.shader;
+            if (null == shader || shader.name.Equals(""))
+            {
+                WriteLog(string.Format("{0} has a null shader.\n", newparticle.name));
+                /*
+                Shader particleShader = Shader.Find("Particles/Alpha Blended Premultiply");
+                Material material = new Material(particleShader);
+                material.mainTexture = defaultMaterial.mainTexture;
+                */
+                updatePsMaterial(newparticle, defaultMaterial);
+            } 
+            else
+            {
+                WriteLog(string.Format("{0} has a shader named {1}.\n", newparticle.name, shader.name));
+            }
+
             FireworkControl.MulSize(mainparticle, style.mul_particle_size);
             FireworkControl.MulExpVel(mainparticle, style.mul_exp_vel, false, true);
 
             FireworkControl control = newparticle.AddComponent<FireworkControl>();
             control.particle = mainparticle;
             control.mode = mode;
+
+            LogMsg("Name of the MainModule is " + control.particle.name);
 
             return control;
 
@@ -273,6 +302,8 @@ namespace CS_Fireworks
                         prefabs.Add(prefab_big);
                         prefabs.Add(prefab_met);
                         LogMsg("firework loaded");//OK
+
+                        defaultMaterial = prefab_standard.GetComponent<ParticleSystemRenderer>().sharedMaterial;
                     }
                 }
                 File.Delete(path + fireworkab);
@@ -283,6 +314,7 @@ namespace CS_Fireworks
                     LogErr("[CoroutineERR1]" + ex.ToString() + "  -|-  " + ex.StackTrace);
             }
 
+            // Processing the AssetBundles that include custom particle effects from the mod users.
             string[] customab = Directory.GetFiles(path, "*.unity3d");
             foreach (string ab in customab)
             {
@@ -346,6 +378,15 @@ namespace CS_Fireworks
         {
             string str = System.Environment.CurrentDirectory;
             return str;
+        }
+
+        private void updatePsMaterial(GameObject obj, Material material)
+        {
+            var renderers = obj.GetComponentsInChildren<ParticleSystemRenderer>();
+            foreach (ParticleSystemRenderer renderer in renderers)
+            {
+                renderer.sharedMaterial = material;
+            }
         }
 
         public static void PrefabNext()
@@ -444,15 +485,24 @@ namespace CS_Fireworks
                 fireworkDetails += "Printing information of the ParticleSystem in object " + obj.name + "." + "\n";
                 ParticleSystem.MainModule main = obj.GetComponent<ParticleSystem>().main;
                 ParticleSystem.EmissionModule emission = obj.GetComponent<ParticleSystem>().emission;
+                Vector3 position = obj.transform.position;
+                Vector3 scale = obj.transform.localScale;
                 string mainInfo = "Main info as follows: \n"
-                    + string.Format("startRotationX: {0} {1}, startRotationY: {2} - {3}, startRotationZ: {4} - {5}\n", 
+                    + string.Format("startRotationX: {0} - {1}, startRotationY: {2} - {3}, startRotationZ: {4} - {5}\n", 
                         main.startRotationX.constantMin, main.startRotationX.constantMax, main.startRotationY.constantMin, main.startRotationY.constantMax, main.startRotationZ.constantMin, main.startRotationZ.constantMax)
-                    + string.Format("startLifetime: {0} - {1} seconds\n", main.startLifetime.constantMax, main.startLifetime.constantMin)
+                    + string.Format("startLifetime: {0} - {1} seconds\n", main.startLifetime.constantMin, main.startLifetime.constantMax)
                     + string.Format("startSpeed: {0} - {1}, startSize: {2} - {3}, maxParticle: {4}\n", 
-                        main.startSpeed.constantMin, main.startSpeed.constantMax, main.startSize.constantMin, main.startSize.constantMax, main.maxParticles);
+                        main.startSpeed.constantMin, main.startSpeed.constantMax, main.startSize.constantMin, main.startSize.constantMax, main.maxParticles)
+                    + string.Format("Simulation space: {0}\n", main.simulationSpace);
+                string transformInfo = string.Format("Transform info: \nX: {0}, Y: {1}, Z: {2}\n", position.x, position.y, position.z)
+                    + string.Format("Transform scaling:X: {0}, Y: {1}, Z: {2}\n", scale.x, scale.y, scale.z);
                 string emissionInfo = "Emission info as follows: \n"
                     + string.Format("burstCount: {0}, rateOverTime: {1} - {2}\n", emission.burstCount, emission.rateOverTime.constantMin, emission.rateOverTime.constantMax);
-                fireworkDetails += mainInfo + emissionInfo;
+                ParticleSystemRenderer renderer = obj.GetComponent<ParticleSystemRenderer>();
+                string rendererInfo = "Renderer mode info: " + renderer.renderMode + "\n"
+                    + "Renderer normal direction: " + renderer.normalDirection + "; renderer sorting layer name: " + renderer.sortingLayerName + "\n"
+                    + "Renderer sorting layer ID: " + renderer.sortingLayerID + "; renderer sorting order in layer: " + renderer.sortingOrder + "\n";
+                fireworkDetails += mainInfo + transformInfo + emissionInfo + rendererInfo;
                 LogMsg(fireworkDetails);
             }
 #endif

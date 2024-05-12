@@ -40,6 +40,24 @@ namespace CS_Fireworks
                     mainm.loop = false;
                     emitm.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0, 1) });
                     particle.Play();
+
+                    // Logging info for debugging.
+                    ParticleSystemRenderer renderer = particle.GetComponent<ParticleSystemRenderer>();
+                    if (renderer != null)
+                    {
+                        FireworksManager.LogMsg("The SortingLayerID of " + particle.name + " is: " + renderer.sortingLayerID + "\n");
+                    }
+                    ParticleSystem.SubEmittersModule sub_module = particle.subEmitters;
+                    if (sub_module.enabled)
+                    {
+                        for (int sub_i = 0; sub_i < sub_module.subEmittersCount; sub_i++)
+                        {
+                            ParticleSystem sub_sys = sub_module.GetSubEmitterSystem(sub_i);
+                            FireworksManager.LogMsg("Sub-Emitter detected: " + sub_sys.name + "\n");
+                        }
+                    }
+                    // Logging part ends.
+
                     break;
                 case FireworkControlMode.Loop:
                     mainm.loop = true;
